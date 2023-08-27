@@ -1,0 +1,231 @@
+adress_s="Monza Italy"
+start_date_s="2015-01-01"
+end_date_s="2023-01-01"
+
+# importing geopy library
+from geopy.geocoders import Nominatim
+ 
+# calling the Nominatim tool
+loc = Nominatim(user_agent="GetLoc")
+ 
+# entering the location name
+getLoc = loc.geocode(adress_s)
+ 
+# printing address
+print(getLoc.address)
+
+# printing latitude and longitude
+print("Latitude = ", getLoc.latitude, "\n")
+print("Longitude = ", getLoc.longitude)
+
+getLoc[1][0]
+
+getLoc[1]
+
+latitude_s=getLoc[1][0]
+longitude_s=getLoc[1][1]
+
+import httpx
+import pandas as pd
+
+ARCHIVE_URI = "https://api.open-meteo.com/v1/forecast"
+params = dict(
+    latitude=latitude_s,
+    longitude=longitude_s,
+    forecast_days=16
+    
+    
+)
+
+params["hourly"] = [
+    "temperature_2m",
+    "relativehumidity_2m",
+    "dewpoint_2m",
+    "apparent_temperature",
+    "precipitation",
+    "rain",
+    # "showers",
+    "snowfall",
+    "weathercode",
+    "pressure_msl",
+    "surface_pressure",
+    "cloudcover",
+    "cloudcover_low",
+    "cloudcover_mid",
+    "cloudcover_high",
+    "windspeed_10m"
+    
+    
+   
+    
+    
+    
+    
+]
+
+response = httpx.get(ARCHIVE_URI, params=params)
+response
+
+df=pd.DataFrame(response.json()["hourly"])
+df
+
+df_gb_d_f=df
+
+df_gb_d_f.loc[:,"full"]=100
+
+df["syr"]=df.time.str[0:4]
+df["smr"]=df.time.str[5:7]
+df["shr"]=df.time.str[-5:-3]
+df["wot"]=df.time.str[0:10]
+
+df
+
+df.precipitation
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+plt.rcParams['figure.figsize'] = [100, 100]
+fig, axs = plt.subplots(5,gridspec_kw={'height_ratios': [1,1,1,1,3*2]})
+plt.suptitle(f'celková 16 dňová predpoveď \n {getLoc[0]} \n od {min(df_gb_d_f.time)} do {max(df_gb_d_f.time)} ',fontsize=70)
+#fig.text(800,0,"created by Viliam Virba",fontsize=14)
+y1=df_gb_d_f.cloudcover
+y2=df_gb_d_f.relativehumidity_2m
+my_cmap1 = plt.get_cmap("plasma_r")
+my_cmap2 = plt.get_cmap("Blues")
+rescale = lambda y: (y - np.min(y)) / (np.max(y) - np.min(y))
+
+fig.set_facecolor("white")
+
+plt.xticks(rotation = 90)
+plt.rcParams['xtick.color'] = "black"
+plt.rcParams['text.color'] = "black"
+
+plt.subplots_adjust(left=0.1,
+                    bottom=0.1,
+                    right=0.9,
+                    top=0.9,
+                    wspace=0.4,
+                    hspace=0.01)
+
+cloudcover_por=0
+humidity_por=1
+temp_por=2
+windspeed_por=3
+
+ec=12
+
+
+axs[cloudcover_por].bar(x=df_gb_d_f.time,height=df_gb_d_f.full,color=my_cmap1(rescale(y1)),width=1)
+axs[cloudcover_por].plot(df_gb_d_f.time,df_gb_d_f.cloudcover_low,'-o',color="lime")
+
+#axs[cloudcover_por].legend("low cloudcover",loc="upper right")
+#axs[cloudcover_por].set_title(f'celková mediánová oblačnosť',size=50)
+axs[cloudcover_por].set_xticks(df_gb_d_f.time[::ec])
+axs[cloudcover_por].tick_params(labelrotation=-45,labelsize=30,top=True, labeltop=True,bottom=False, labelbottom=False)
+axs[cloudcover_por].text(-19, 93, f' celková \n oblačnosť', style ='italic',fontsize = 30, color ="black")
+axs[cloudcover_por].text(386, 90, f'created by\n Viliam Virba', style ='italic',fontsize = 30, color ="black")
+
+axs[humidity_por].bar(x=df_gb_d_f.time,height=df_gb_d_f.full,color=my_cmap2(rescale(y2)),width=1)
+axs[humidity_por].bar(x=df_gb_d_f.time,height=df_gb_d_f.precipitation*10,color="red")
+axs[humidity_por].bar(x=df_gb_d_f.time,height=df_gb_d_f.snowfall*10,color="lime")
+#axs[humidity_por].set_title(f'celková vlhkosť',size=50)
+axs[humidity_por].text(-19, 86, f' celková \n vlhkosť \n a zrážky', style ='italic',fontsize = 30, color ="black")
+axs[humidity_por].set_xticks(df_gb_d_f.time[1000::ec+1000])
+axs[humidity_por].tick_params(labelrotation=0,labelsize=20)
+
+axs[temp_por].plot(df_gb_d_f.time,df_gb_d_f.temperature_2m,'-o',color="blue")
+axs[temp_por].plot(df_gb_d_f.time,df_gb_d_f.apparent_temperature,'-o',color="orange")
+
+for i, v in enumerate(df_gb_d_f.temperature_2m):
+    axs[temp_por].text(i, v+2, "%d" %v, ha="center")
+
+
+#axs[temp_por].set_title(f'celková mediánová teplota',size=50)
+axs[temp_por].text(-18, 28 , f' celková \n teplota', style ='italic',fontsize = 30, color ="black")
+axs[temp_por].set_xticks(df_gb_d_f.time[1000::ec+1000])
+axs[temp_por].tick_params(labelrotation=0,labelsize=20)
+
+axs[windspeed_por].plot(df_gb_d_f.time,df_gb_d_f.windspeed_10m,'-o')
+
+#axs[windspeed_por].set_title(f'celková rýchlosť vetra',size=50)
+axs[windspeed_por].text(-17,13, f' celková \n rýchlosť \n vetra ', style ='italic',fontsize = 30, color ="black")
+axs[windspeed_por].set_xticks(df_gb_d_f.time[1000::ec+1000])
+axs[windspeed_por].tick_params(labelrotation=0,labelsize=40)
+
+
+import matplotlib.pyplot as plt
+import tilemapbase
+
+tilemapbase.init(create=True)
+# Define the `extent`
+
+my_office = (getLoc[1][1],getLoc[1][0])
+
+# The path to plot
+
+longs = [getLoc[1][1]]
+lats = [getLoc[1][0]]
+
+degree_range = 0.1
+extent = tilemapbase.Extent.from_lonlat(my_office[0] - degree_range, my_office[0] + degree_range,
+                  my_office[1] - degree_range, my_office[1] + degree_range)
+extent = extent.to_aspect(1)
+# Convert to web mercator
+path = [tilemapbase.project(x,y) for x,y in zip(longs, lats)]
+x, y = zip(*path)
+
+t = tilemapbase.tiles.build_OSM()
+plotter = tilemapbase.Plotter(extent, tilemapbase.tiles.build_OSM(), width=600)
+
+
+
+#plt.scatter(axs[3].bbox.width/2,axs[3].bbox.height/2, marker=".", color="black", linewidth=2000)
+
+
+plotter.plot(axs[4])
+axs[4].scatter(x,y, marker=".", color="black", linewidth=300)
+
+
+
+
+axs[cloudcover_por].bar(x=df_gb_d_f.time,height=df_gb_d_f.full,color=my_cmap1(rescale(y1)),width=1)
+axs[cloudcover_por].plot(df_gb_d_f.time,df_gb_d_f.cloudcover_low,'-o',color="lime")
+
+#axs[cloudcover_por].legend("low cloudcover",loc="upper right")
+#axs[cloudcover_por].set_title(f'celková mediánová oblačnosť',size=50)
+axs[cloudcover_por].set_xticks(df_gb_d_f.time[::ec])
+axs[cloudcover_por].tick_params(labelrotation=-45,labelsize=30,top=True, labeltop=True,bottom=False, labelbottom=False)
+axs[cloudcover_por].text(-19, 93, f' celková \n oblačnosť', style ='italic',fontsize = 30, color ="black")
+axs[cloudcover_por].text(386, 90, f'created by\n Viliam Virba', style ='italic',fontsize = 30, color ="black")
+
+axs[humidity_por].bar(x=df_gb_d_f.time,height=df_gb_d_f.full,color=my_cmap2(rescale(y2)),width=1)
+axs[humidity_por].bar(x=df_gb_d_f.time,height=df_gb_d_f.precipitation*10,color="red")
+axs[humidity_por].bar(x=df_gb_d_f.time,height=df_gb_d_f.snowfall*10,color="lime")
+#axs[humidity_por].set_title(f'celková vlhkosť',size=50)
+axs[humidity_por].text(-19, 86, f' celková \n vlhkosť \n a zrážky', style ='italic',fontsize = 30, color ="black")
+axs[humidity_por].set_xticks(df_gb_d_f.time[1000::ec+1000])
+axs[humidity_por].tick_params(labelrotation=0,labelsize=20)
+
+axs[temp_por].plot(df_gb_d_f.time,df_gb_d_f.temperature_2m,'-o',color="blue")
+axs[temp_por].plot(df_gb_d_f.time,df_gb_d_f.apparent_temperature,'-o',color="orange")
+
+for i, v in enumerate(df_gb_d_f.temperature_2m):
+    axs[temp_por].text(i, v+2, "%d" %v, ha="center")
+
+
+#axs[temp_por].set_title(f'celková mediánová teplota',size=50)
+axs[temp_por].text(-18, 28 , f' celková \n teplota', style ='italic',fontsize = 30, color ="black")
+axs[temp_por].set_xticks(df_gb_d_f.time[1000::ec+1000])
+axs[temp_por].tick_params(labelrotation=0,labelsize=20)
+
+axs[windspeed_por].plot(df_gb_d_f.time,df_gb_d_f.windspeed_10m,'-o')
+
+#axs[windspeed_por].set_title(f'celková rýchlosť vetra',size=50)
+axs[windspeed_por].text(-17,13, f' celková \n rýchlosť \n vetra ', style ='italic',fontsize = 30, color ="black")
+axs[windspeed_por].set_xticks(df_gb_d_f.time[1000::ec+1000])
+axs[windspeed_por].tick_params(labelrotation=0,labelsize=40)
+
+
+
+plt.show()
